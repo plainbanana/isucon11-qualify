@@ -1011,21 +1011,24 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 
 	conditions := []IsuCondition{}
 	var err error
+	condLv := getConditionLevelCSV(conditionLevel)
 
 	if startTime.IsZero() {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
+				"	AND `condition_level` IN ( ? )"+
 				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime,
+			jiaIsuUUID, endTime, condLv,
 		)
 	} else {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
+				"	AND `condition_level` IN ( ? )"+
 				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime, startTime,
+			jiaIsuUUID, endTime, startTime, condLv,
 		)
 	}
 	if err != nil {
@@ -1058,6 +1061,21 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 	}
 
 	return conditionsResponse, nil
+}
+
+func getConditionLevelCSV(levels map[string]interface{}) string {
+	keys := make([]string, 0)
+	for k := range levels {
+		switch k {
+		case conditionLevelInfo:
+			keys = append(keys, "0")
+		case conditionLevelWarning:
+			keys = append(keys, "1", "2")
+		case conditionLevelCritical:
+			keys = append(keys, "3")
+		}
+	}
+	return strings.Join(keys, ",")
 }
 
 // ISUのコンディションの文字列からコンディションレベルを計算
