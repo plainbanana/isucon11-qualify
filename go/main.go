@@ -1011,21 +1011,24 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 
 	conditions := []IsuCondition{}
 	var err error
+	conds := getConditionLevelCSV(conditionLevel)
 
 	if startTime.IsZero() {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime,
+				"	AND `condition_level` IN ( "+conds+" )"+
+				"	ORDER BY `timestamp` DESC LIMIT ?",
+			jiaIsuUUID, endTime, limit,
 		)
 	} else {
 		err = db.Select(&conditions,
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ?"+
 				"	AND `timestamp` < ?"+
 				"	AND ? <= `timestamp`"+
-				"	ORDER BY `timestamp` DESC",
-			jiaIsuUUID, endTime, startTime,
+				"	AND `condition_level` IN ( "+conds+" )"+
+				"	ORDER BY `timestamp` DESC LIMIT ?",
+			jiaIsuUUID, endTime, startTime, limit,
 		)
 	}
 	if err != nil {
@@ -1039,25 +1042,34 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 			continue
 		}
 
-		if _, ok := conditionLevel[cLevel]; ok {
-			data := GetIsuConditionResponse{
-				JIAIsuUUID:     c.JIAIsuUUID,
-				IsuName:        isuName,
-				Timestamp:      c.Timestamp.Unix(),
-				IsSitting:      c.IsSitting,
-				Condition:      c.Condition,
-				ConditionLevel: cLevel,
-				Message:        c.Message,
-			}
-			conditionsResponse = append(conditionsResponse, &data)
+		data := GetIsuConditionResponse{
+			JIAIsuUUID:     c.JIAIsuUUID,
+			IsuName:        isuName,
+			Timestamp:      c.Timestamp.Unix(),
+			IsSitting:      c.IsSitting,
+			Condition:      c.Condition,
+			ConditionLevel: cLevel,
+			Message:        c.Message,
 		}
-	}
-
-	if len(conditionsResponse) > limit {
-		conditionsResponse = conditionsResponse[:limit]
+		conditionsResponse = append(conditionsResponse, &data)
 	}
 
 	return conditionsResponse, nil
+}
+
+func getConditionLevelCSV(levels map[string]interface{}) string {
+	keys := make([]string, 0)
+	for k := range levels {
+		switch k {
+		case conditionLevelInfo:
+			keys = append(keys, "'0'")
+		case conditionLevelWarning:
+			keys = append(keys, "'1'", "'2'")
+		case conditionLevelCritical:
+			keys = append(keys, "'3'")
+		}
+	}
+	return strings.Join(keys, ",")
 }
 
 // ISUのコンディションの文字列からコンディションレベルを計算
