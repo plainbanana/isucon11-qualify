@@ -1115,7 +1115,7 @@ func calculateConditionLevel(condition int) (string, error) {
 func getTrend(c echo.Context) error {
 	characterList := []Isu{}
 	// err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
-	err := SmstGetTrendA.Get(&characterList)
+	err := SmstGetTrendA.Select(&characterList)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1129,7 +1129,7 @@ func getTrend(c echo.Context) error {
 		// 	"SELECT * FROM `isu` WHERE `character` = ?",
 		// 	character.Character,
 		// )
-		err = SmstGetTrendB.Get(&isuList, character.Character)
+		err = SmstGetTrendB.Select(&isuList, character.Character)
 		if err != nil {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -1144,7 +1144,7 @@ func getTrend(c echo.Context) error {
 			// 	"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC LIMIT 1",
 			// 	isu.JIAIsuUUID,
 			// )
-			err = SmstGetTrendC.Get(&conditions, isu.JIAIsuUUID)
+			err = SmstGetTrendC.Select(&conditions, isu.JIAIsuUUID)
 			if err != nil {
 				c.Logger().Errorf("db error: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
