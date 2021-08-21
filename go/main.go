@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	echopprof "github.com/plainbanana/echo-pprof"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -235,6 +236,8 @@ func main() {
 	e.GET("/isu/:jia_isu_uuid/graph", getIndex)
 	e.GET("/register", getIndex)
 	e.Static("/assets", frontendContentsPath+"/assets")
+
+	echopprof.Wrap(e)
 
 	mySQLConnectionData = NewMySQLConnectionEnv()
 
