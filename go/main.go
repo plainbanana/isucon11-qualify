@@ -1121,39 +1121,43 @@ func getTrend(c echo.Context) error {
 			keys = append(keys, "'"+isu.JIAIsuUUID+"'")
 		}
 		uuids := strings.Join(keys, ",")
-		conditions := []IsuCondition{}
-		err = db.Select(&conditions,
-			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` IN ( "+uuids+" )"+
-				"	AND timestamp=("+
-				"	SELECT MAX(timestamp) from isu_condition AS ic"+
-				"	WHERE isu_condition.jia_isu_uuid = ic.jia_isu_uuid)"+
-				"	order by timestamp desc")
+		//conditions := []IsuCondition{}
+		data := []struct {
+			id    int       `db:"id"`
+			level int       `db:"level"`
+			time  time.Time `db:"time"`
+		}{}
+		err = db.Select(&data,
+			"SELECT isu.id AS 'id', isu_condition.condition_level AS 'level', timestamp AS 'time' "+
+				"FROM isu_condition "+
+				"LEFT JOIN isu ON isu.jia_isu_uuid=isu_condition.jia_isu_uuid "+
+				"WHERE isu_condition.jia_isu_uuid IN ( "+uuids+" ) "+
+				"	AND timestamp=( "+
+				"	SELECT MAX(timestamp) from isu_condition AS ic "+
+				"	WHERE isu_condition.jia_isu_uuid = ic.jia_isu_uuid) "+
+				"ORDER BY timestamp DESC ")
 		if err != nil {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		for _, con := range conditions {
-			for _, isu := range isuList {
-				if con.JIAIsuUUID == isu.JIAIsuUUID {
-					conditionLevel, err := calculateConditionLevel(con.ConditionLevel)
-					if err != nil {
-						c.Logger().Error(err)
-						return c.NoContent(http.StatusInternalServerError)
-					}
-					trendCondition := TrendCondition{
-						ID:        isu.ID,
-						Timestamp: con.Timestamp.Unix(),
-					}
-					switch conditionLevel {
-					case "info":
-						characterInfoIsuConditions = append(characterInfoIsuConditions, &trendCondition)
-					case "warning":
-						characterWarningIsuConditions = append(characterWarningIsuConditions, &trendCondition)
-					case "critical":
-						characterCriticalIsuConditions = append(characterCriticalIsuConditions, &trendCondition)
-					}
-				}
+		for _, d := range data {
+			conditionLevel, err := calculateConditionLevel(d.level)
+			if err != nil {
+				c.Logger().Error(err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+			trendCondition := TrendCondition{
+				ID:        d.id,
+				Timestamp: d.time.Unix(),
+			}
+			switch conditionLevel {
+			case "info":
+				characterInfoIsuConditions = append(characterInfoIsuConditions, &trendCondition)
+			case "warning":
+				characterWarningIsuConditions = append(characterWarningIsuConditions, &trendCondition)
+			case "critical":
+				characterCriticalIsuConditions = append(characterCriticalIsuConditions, &trendCondition)
 			}
 		}
 
