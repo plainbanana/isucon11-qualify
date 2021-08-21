@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1127,14 +1126,15 @@ func getTrend(c echo.Context) error {
 			"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` IN ( "+uuids+" )"+
 				"	AND timestamp=("+
 				"	SELECT MAX(timestamp) from isu_condition AS ic"+
-				"	WHERE isu_condition.jia_isu_uuid = ic.jia_isu_uuid)")
+				"	WHERE isu_condition.jia_isu_uuid = ic.jia_isu_uuid)"+
+				"	order by timestamp desc")
 		if err != nil {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		for _, isu := range isuList {
-			for _, con := range conditions {
+		for _, con := range conditions {
+			for _, isu := range isuList {
 				if con.JIAIsuUUID == isu.JIAIsuUUID {
 					conditionLevel, err := calculateConditionLevel(con.ConditionLevel)
 					if err != nil {
@@ -1157,15 +1157,6 @@ func getTrend(c echo.Context) error {
 			}
 		}
 
-		sort.Slice(characterInfoIsuConditions, func(i, j int) bool {
-			return characterInfoIsuConditions[i].Timestamp > characterInfoIsuConditions[j].Timestamp
-		})
-		sort.Slice(characterWarningIsuConditions, func(i, j int) bool {
-			return characterWarningIsuConditions[i].Timestamp > characterWarningIsuConditions[j].Timestamp
-		})
-		sort.Slice(characterCriticalIsuConditions, func(i, j int) bool {
-			return characterCriticalIsuConditions[i].Timestamp > characterCriticalIsuConditions[j].Timestamp
-		})
 		res = append(res,
 			TrendResponse{
 				Character: character.Character,
