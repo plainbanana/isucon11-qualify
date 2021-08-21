@@ -10,6 +10,7 @@ sudo systemctl stop   isucondition.go.service
 EOF
 
 sftp $SERVER <<EOF
+cd /home/isucon/webapp/go
 put isucondition
 EOF
 
