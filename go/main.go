@@ -52,6 +52,10 @@ var (
 	jiaJWTSigningKey *ecdsa.PublicKey
 
 	postIsuConditionTargetBaseURL string // JIAへのactivate時に登録する，ISUがconditionを送る先のURL
+
+	SmstGetTrendA *sqlx.Stmt
+	SmstGetTrendB *sqlx.Stmt
+	SmstGetTrendC *sqlx.Stmt
 )
 
 type Config struct {
@@ -251,6 +255,22 @@ func main() {
 	}
 	db.SetMaxOpenConns(1000)
 	defer db.Close()
+
+	SmstGetTrendA, err = db.Preparex("SELECT `character` FROM `isu` GROUP BY `character`")
+	if err != nil {
+		e.Logger.Fatalf("fail prepare A: %v", err)
+		return
+	}
+	SmstGetTrendB, err = db.Preparex("SELECT * FROM `isu` WHERE `character` = ?")
+	if err != nil {
+		e.Logger.Fatalf("fail prepare B: %v", err)
+		return
+	}
+	SmstGetTrendC, err = db.Preparex("SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC LIMIT 1")
+	if err != nil {
+		e.Logger.Fatalf("fail prepare C: %v", err)
+		return
+	}
 
 	postIsuConditionTargetBaseURL = os.Getenv("POST_ISUCONDITION_TARGET_BASE_URL")
 	if postIsuConditionTargetBaseURL == "" {
@@ -1094,7 +1114,8 @@ func calculateConditionLevel(condition int) (string, error) {
 // ISUの性格毎の最新のコンディション情報
 func getTrend(c echo.Context) error {
 	characterList := []Isu{}
-	err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+	// err := db.Select(&characterList, "SELECT `character` FROM `isu` GROUP BY `character`")
+	err := SmstGetTrendA.Select(&characterList)
 	if err != nil {
 		c.Logger().Errorf("db error: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -1104,10 +1125,11 @@ func getTrend(c echo.Context) error {
 
 	for _, character := range characterList {
 		isuList := []Isu{}
-		err = db.Select(&isuList,
-			"SELECT * FROM `isu` WHERE `character` = ?",
-			character.Character,
-		)
+		// err = db.Select(&isuList,
+		// 	"SELECT * FROM `isu` WHERE `character` = ?",
+		// 	character.Character,
+		// )
+		err = SmstGetTrendB.Select(&isuList, character.Character)
 		if err != nil {
 			c.Logger().Errorf("db error: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -1118,10 +1140,11 @@ func getTrend(c echo.Context) error {
 		characterCriticalIsuConditions := []*TrendCondition{}
 		for _, isu := range isuList {
 			conditions := []IsuCondition{}
-			err = db.Select(&conditions,
-				"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC LIMIT 1",
-				isu.JIAIsuUUID,
-			)
+			// err = db.Select(&conditions,
+			// 	"SELECT * FROM `isu_condition` WHERE `jia_isu_uuid` = ? ORDER BY timestamp DESC LIMIT 1",
+			// 	isu.JIAIsuUUID,
+			// )
+			err = SmstGetTrendC.Select(&conditions, isu.JIAIsuUUID)
 			if err != nil {
 				c.Logger().Errorf("db error: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
