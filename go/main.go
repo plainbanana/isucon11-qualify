@@ -491,7 +491,7 @@ func getIsuList(c echo.Context) error {
 
 		var formattedCondition *GetIsuConditionResponse
 		if foundLastCondition {
-			conditionLevel, err := calculateConditionLevel(lastCondition.Condition)
+			conditionLevel, err := calculateConditionLevel(lastCondition.ConditionLevel)
 			if err != nil {
 				c.Logger().Error(err)
 				return c.NoContent(http.StatusInternalServerError)
@@ -1034,7 +1034,7 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 
 	conditionsResponse := []*GetIsuConditionResponse{}
 	for _, c := range conditions {
-		cLevel, err := calculateConditionLevel(c.Condition)
+		cLevel, err := calculateConditionLevel(c.ConditionLevel)
 		if err != nil {
 			continue
 		}
@@ -1061,11 +1061,10 @@ func getIsuConditionsFromDB(db *sqlx.DB, jiaIsuUUID string, endTime time.Time, c
 }
 
 // ISUのコンディションの文字列からコンディションレベルを計算
-func calculateConditionLevel(condition string) (string, error) {
+func calculateConditionLevel(condition int) (string, error) {
 	var conditionLevel string
 
-	warnCount := strings.Count(condition, "=true")
-	switch warnCount {
+	switch condition {
 	case 0:
 		conditionLevel = conditionLevelInfo
 	case 1, 2:
@@ -1118,7 +1117,7 @@ func getTrend(c echo.Context) error {
 
 			if len(conditions) > 0 {
 				isuLastCondition := conditions[0]
-				conditionLevel, err := calculateConditionLevel(isuLastCondition.Condition)
+				conditionLevel, err := calculateConditionLevel(isuLastCondition.ConditionLevel)
 				if err != nil {
 					c.Logger().Error(err)
 					return c.NoContent(http.StatusInternalServerError)
