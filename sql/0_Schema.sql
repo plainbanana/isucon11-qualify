@@ -23,7 +23,10 @@ CREATE TABLE `isu_condition` (
   `condition` VARCHAR(255) NOT NULL,
   `message` VARCHAR(255) NOT NULL,
   `created_at` DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY(`id`)
+  `condition_level` int AS (round((length(`condition`) - LENGTH( REPLACE ( `condition`, "=true", "") ) )/ length("=true"))),
+
+  PRIMARY KEY(`id`),
+  INDEX `idx_uuid_timestamp_desc` (`jia_isu_uuid`, `timestamp` DESC)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 CREATE TABLE `user` (
