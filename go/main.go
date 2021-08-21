@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	echopprof "github.com/plainbanana/echo-pprof"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	echopprof "github.com/plainbanana/echo-pprof"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-sql-driver/mysql"
@@ -1198,23 +1199,28 @@ func postIsuCondition(c echo.Context) error {
 		return c.String(http.StatusNotFound, "not found: isu")
 	}
 
+	conds := []map[string]interface{}{}
 	for _, cond := range req {
 		timestamp := time.Unix(cond.Timestamp, 0)
 
 		if !isValidConditionFormat(cond.Condition) {
 			return c.String(http.StatusBadRequest, "bad request body")
 		}
+		conds = append(conds, map[string]interface{}{
+			"uuid":   jiaIsuUUID,
+			"time":   timestamp,
+			"is_str": cond.IsSitting,
+			"cond":   cond.Condition,
+			"msg":    cond.Message,
+		})
+	}
 
-		_, err = tx.Exec(
-			"INSERT INTO `isu_condition`"+
-				"	(`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
-				"	VALUES (?, ?, ?, ?, ?)",
-			jiaIsuUUID, timestamp, cond.IsSitting, cond.Condition, cond.Message)
-		if err != nil {
-			c.Logger().Errorf("db error: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
+	_, err = tx.NamedExec(
+		"INSERT INTO `isu_condition` (`jia_isu_uuid`, `timestamp`, `is_sitting`, `condition`, `message`)"+
+			"	VALUES (:uuid,:time,:is_str,:cond,:msg)", conds)
+	if err != nil {
+		c.Logger().Errorf("db error: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	err = tx.Commit()
